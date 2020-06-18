@@ -1,1 +1,1 @@
-# storex-hub-integration-memex-arweave
+# storex-hub-ipfs-textile
