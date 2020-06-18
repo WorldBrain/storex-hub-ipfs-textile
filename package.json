@@ -1,0 +1,49 @@
+{
+  "private": true,
+  "name": "storex-hub-ipfs-textile",
+  "version": "0.1.0",
+  "description": "IPFS integration through Textile for Storex Hub",
+  "scripts": {
+    "start": "ts-node ts/main.ts",
+    "prepare": "tsc",
+    "prepare:watch": "npm run prepare -- -w",
+    "test": "mocha --require ts-node/register \"ts/**/*.test.ts\"",
+    "test:watch": "mocha -r source-map-support/register -r ts-node/register \"ts/**/*.test.ts\" --watch --watch-extensions ts",
+    "test:coverage": "rm -rf lib ; yarn prepare && nyc --reporter=html --reporter=text mocha 'lib/**/*.test.js'",
+    "build:prod": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "build:watch": "webpack --mode development --watch"
+  },
+  "keywords": [],
+  "author": "Vincent den Boer",
+  "dependencies": {
+    "@textile/hub": "^0.1.4",
+    "@textile/threads-database": "^0.3.4",
+    "@textile/threads-id": "^0.1.1",
+    "@textile/textile": "^0.3.1",
+    "@worldbrain/storex": "^0.4.1",
+    "@worldbrain/storex-pattern-modules": "^0.4.0",
+    "@worldbrain/storex-middleware-change-watcher": "^0.1.1",
+    "@worldbrain/storex-hub": "^0.4.0",
+    "@worldbrain/memex-storex-hub": "^0.1.2",
+    "socket.io-client": "^2.3.0",
+    "isomorphic-ws": "^4.0.1",
+    "lodash": "^4.17.10"
+  },
+  "devDependencies": {
+    "@types/expect": "^1.20.4",
+    "@types/lodash": "^4.14.149",
+    "@types/mocha": "^2.2.44",
+    "@types/node": "^10.12.11",
+    "@types/socket.io-client": "^1.4.32",
+    "expect": "~25.2.6",
+    "mocha": "^4.0.1",
+    "source-map-support": "0.5.16",
+    "typescript": "^3.8.0",
+    "ts-loader": "^6.2.2",
+    "ts-node": "^8.8.1",
+    "webpack": "^4.42.1",
+    "webpack-cli": "^3.3.11",
+    "@worldbrain/storex-hub-interfaces": "0.1.5"
+  }
+}

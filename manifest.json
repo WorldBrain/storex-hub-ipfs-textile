@@ -1,0 +1,8 @@
+{
+  "identifier": "io.textile",
+  "version": "0.0.1",
+  "description": "Store your data on IPFS through textile",
+  "siteUrl": "https://github.com/WorldBrain/storex-hub-ipfs-textile",
+  "mainPath": "plugin",
+  "entryFunction": "main"
+}
