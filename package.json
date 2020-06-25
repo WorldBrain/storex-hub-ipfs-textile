@@ -17,10 +17,8 @@
   "keywords": [],
   "author": "Vincent den Boer",
   "dependencies": {
-    "@textile/hub": "^0.1.4",
-    "@textile/threads-database": "^0.3.4",
-    "@textile/threads-id": "^0.1.1",
-    "@textile/textile": "^0.3.1",
+    "@textile/hub": "^0.1.7",
+    "@textile/threads-core": "^0.1.24",
     "@worldbrain/storex": "^0.4.1",
     "@worldbrain/storex-pattern-modules": "^0.4.0",
     "@worldbrain/storex-middleware-change-watcher": "^0.1.1",

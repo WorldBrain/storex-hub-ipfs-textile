@@ -1,9 +1,9 @@
 global['WebSocket'] = require('isomorphic-ws')
 import io from 'socket.io-client'
 import { createStorexHubSocketClient } from '@worldbrain/storex-hub/lib/client'
-import { Identity, ThreadID, Libp2pCryptoIdentity } from '@textile/threads-core'
-import { Database } from '@textile/threads-database'
-import { Client, KeyInfo } from '@textile/hub'
+// import { Identity, ThreadID, Libp2pCryptoIdentity } from '@textile/threads-core'
+// import { Database } from '@textile/threads-database'
+// import { Client, KeyInfo } from '@textile/hub'
 import { Application } from './application'
 import { FileSettingsStore } from './settings'
 import { join } from 'path'
@@ -12,12 +12,12 @@ export async function main(options?: {
     port?: number
     local?: boolean
 }) {
-    function serializeThreadID(threadID: ThreadID) {
-        return threadID.toString()
-    }
-    function deserializeThreadID(threadIDString: string) {
-        return ThreadID.fromString(threadIDString)
-    }
+    // function serializeThreadID(threadID: ThreadID) {
+    //     return threadID.toString()
+    // }
+    // function deserializeThreadID(threadIDString: string) {
+    //     return ThreadID.fromString(threadIDString)
+    // }
 
     // let database: Database
     // if (options?.local) {

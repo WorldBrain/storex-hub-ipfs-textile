@@ -1,7 +1,6 @@
 import { EventEmitter } from 'events'
-import { Identity, ThreadID, Libp2pCryptoIdentity } from '@textile/threads-core'
-import { Database } from '@textile/threads-database'
-import { Client, KeyInfo } from '@textile/hub'
+import { Libp2pCryptoIdentity } from '@textile/threads-core'
+import { Client, ThreadID, KeyInfo } from '@textile/hub'
 import { StorexHubApi_v0, StorexHubCallbacks_v0, HandleRemoteCallResult_v0 } from '@worldbrain/storex-hub/lib/public-api'
 import { StorageOperationChangeInfo } from '@worldbrain/storex-middleware-change-watcher/lib/types'
 import { Tag } from '@worldbrain/memex-storex-hub/lib/types'
@@ -73,10 +72,9 @@ export class Application {
     }
 
     async createThreadsClient() {
-        console.log(getKeyInfo())
         const client = await Client.withKeyInfo(getKeyInfo())
-        // const identity = await Libp2pCryptoIdentity.fromRandom()
-        // const token = await client.getToken(identity)
+        const identity = await Libp2pCryptoIdentity.fromRandom()
+        await client.getToken(identity)
         return client
     }
 
@@ -101,7 +99,17 @@ export class Application {
             return { status: 'invalid-args' }
         }
         const client = await this.getThreadsClient()
-        await client.newCollection(threadID, collectionName, schema)
+        console.log(client.context)
+        console.log('creating collection in thread', threadID, collectionName, schema)
+        const schema2 = {
+            properties: {
+                _id: { type: 'string' },
+                fullName: { type: 'string' },
+                age: { type: 'integer', minimum: 0 },
+            },
+        }
+        console.log(await client.listDBs())
+        // await client.newCollection(threadID, collectionName, schema2)
         return { status: 'success', result: {} }
     }
 
@@ -148,15 +156,17 @@ export class Application {
     }
 
     async getDefaultThreadID() {
-        const savedThreadID = await this.getSetting('defaultThreadID')
-        if (savedThreadID) {
-            return ThreadID.fromString(savedThreadID)
-        }
+        // const savedThreadID = await this.getSetting('defaultThreadID')
+        // if (savedThreadID) {
+        //     return ThreadID.fromString(savedThreadID)
+        // }
 
         const newThreadID = ThreadID.fromRandom()
+        console.log('creating client')
         const client = await this.getThreadsClient()
+        console.log('creating database')
         await client.newDB(newThreadID)
-        await this.settingsStore.updateSettings({ defaultThreadID: newThreadID.toString() })
+        // await this.settingsStore.updateSettings({ defaultThreadID: newThreadID.toString() })
         return newThreadID
     }
 
