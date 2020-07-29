@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { Libp2pCryptoIdentity } from '@textile/threads-core'
-import { Client, ThreadID, KeyInfo } from '@textile/hub'
+import { Client, Buckets, ThreadID, KeyInfo } from '@textile/hub'
 import { StorexHubApi_v0, StorexHubCallbacks_v0, HandleRemoteCallResult_v0 } from '@worldbrain/storex-hub/lib/public-api'
 import { StorageOperationChangeInfo } from '@worldbrain/storex-middleware-change-watcher/lib/types'
 import { Tag } from '@worldbrain/memex-storex-hub/lib/types'
@@ -17,6 +17,7 @@ export class Application {
     events = new EventEmitter()
     client!: StorexHubApi_v0
     threadsClient?: Client
+    bucketsClient?: Buckets
     settingsStore!: SettingsStore
     logger: Logger
     schemaUpdated = false
@@ -36,13 +37,15 @@ export class Application {
                 try {
                     let result: HandleRemoteCallResult_v0
                     if (call === 'createThread') {
-                        result = await this.createThread()
+                        result = await this.createThreadCall()
                     } else if (call === 'createCollection') {
-                        result = await this.createCollection(args)
+                        result = await this.createCollectionCall(args)
                     } else if (call === 'createObjects') {
-                        result = await this.createObjects(args)
+                        result = await this.createObjectsCall(args)
                     } else if (call === 'findObjects') {
-                        result = await this.findObjects(args)
+                        result = await this.findObjectsCall(args)
+                    } else if (call === 'ensureBucket') {
+                        result = await this.ensureBucketCall(args)
                     } else {
                         return { status: 'call-not-found' }
                     }
@@ -75,21 +78,34 @@ export class Application {
         const client = await Client.withKeyInfo(getKeyInfo())
         const identity = await Libp2pCryptoIdentity.fromRandom()
         await client.getToken(identity)
+        this.threadsClient = client
         return client
     }
 
-    async getThreadsClient() {
-        return this.threadsClient ?? (this.createThreadsClient())
+    async createBucketsClient() {
+        const client = await Buckets.withKeyInfo(getKeyInfo())
+        const identity = await Libp2pCryptoIdentity.fromRandom()
+        await client.getToken(identity)
+        this.bucketsClient = client
+        return client
     }
 
-    async createThread(): Promise<HandleRemoteCallResult_v0> {
+    async getBucketsClient() {
+        return this.bucketsClient ?? this.createBucketsClient()
+    }
+
+    async getThreadsClient() {
+        return this.threadsClient ?? this.createThreadsClient()
+    }
+
+    async createThreadCall(): Promise<HandleRemoteCallResult_v0> {
         const newThreadID = ThreadID.fromRandom()
         const client = await this.getThreadsClient()
-        await client.newDB(newThreadID)
+        // await client.newDB(newThreadID)
         return { status: 'success', result: { threadID: newThreadID.toString() } }
     }
 
-    async createCollection(args: { [key: string]: any }): Promise<HandleRemoteCallResult_v0> {
+    async createCollectionCall(args: { [key: string]: any }): Promise<HandleRemoteCallResult_v0> {
         const { name: collectionName, threadID: givenThreadID, schema } = args
         if (!collectionName) {
             return { status: 'invalid-args' }
@@ -99,21 +115,22 @@ export class Application {
             return { status: 'invalid-args' }
         }
         const client = await this.getThreadsClient()
-        console.log(client.context)
-        console.log('creating collection in thread', threadID, collectionName, schema)
-        const schema2 = {
-            properties: {
-                _id: { type: 'string' },
-                fullName: { type: 'string' },
-                age: { type: 'integer', minimum: 0 },
-            },
-        }
-        console.log(await client.listDBs())
+        // console.log(client.context)
+        // console.log('creating collection in thread', threadID, collectionName, schema)
+        // const schema2 = {
+        //     properties: {
+        //         _id: { type: 'string' },
+        //         fullName: { type: 'string' },
+        //         age: { type: 'integer', minimum: 0 },
+        //     },
+        // }
+        // console.log(await client.listDBs())
         // await client.newCollection(threadID, collectionName, schema2)
+        await client.newCollection(threadID, collectionName, schema)
         return { status: 'success', result: {} }
     }
 
-    async createObjects(args: { [key: string]: any }): Promise<HandleRemoteCallResult_v0> {
+    async createObjectsCall(args: { [key: string]: any }): Promise<HandleRemoteCallResult_v0> {
         const { collection, objects, threadID: givenThreadID } = args
         if (!collection || !objects || !(objects instanceof Array)) {
             return { status: 'invalid-args' }
@@ -128,7 +145,29 @@ export class Application {
         return { status: 'success', result: {} }
     }
 
-    async findObjects(args: { [key: string]: any }): Promise<HandleRemoteCallResult_v0> {
+    async ensureBucketCall(args: { [key: string]: any }): Promise<HandleRemoteCallResult_v0> {
+        const bucketName = args.bucketName
+        if (!bucketName) {
+            return { status: 'invalid-args' }
+        }
+
+        return { status: 'success', result: await this.ensureBucket({ bucketName }) }
+    }
+
+    async ensureBucket(args: { bucketName: string }) {
+        const client = await this.getBucketsClient()
+        const roots = await client.list();
+        const existing = roots.find((bucket) => bucket.name === args.bucketName)
+        if (existing) {
+            return existing.key;
+        }
+
+        const created = await client.init(args.bucketName);
+        const bucketKey = created.root ? created.root.key : ''
+        return { bucketKey }
+    }
+
+    async findObjectsCall(args: { [key: string]: any }): Promise<HandleRemoteCallResult_v0> {
         const { collection, where, threadID: givenThreadID } = args
         if (!collection || !where) {
             return { status: 'invalid-args' }
