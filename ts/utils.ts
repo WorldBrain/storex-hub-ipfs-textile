@@ -8,10 +8,3 @@ export function requireEnvVar(key: string) {
     }
     return value
 }
-
-export function getKeyInfo(): KeyInfo {
-    return {
-        key: requireEnvVar('USER_API_KEY'),
-        secret: requireEnvVar('USER_API_SECRET'),
-    }
-}

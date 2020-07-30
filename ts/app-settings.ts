@@ -5,14 +5,19 @@ export const APP_SETTINGS_DESCRIPTION: SettingsDescription = {
         sections: [
             {
                 title: "General",
-                contents: [{ field: "walletKey" }],
+                contents: [{ field: "userKey" }, { field: "userSecret" }],
             },
         ],
     },
     fields: {
-        walletKey: {
+        userKey: {
             type: "string",
-            label: "Arweave JWT key",
+            label: "Textile user key",
+            widget: { type: "text-input" },
+        },
+        userSecret: {
+            type: "string",
+            label: "Textile user secret",
             widget: { type: "text-input" },
         },
     },

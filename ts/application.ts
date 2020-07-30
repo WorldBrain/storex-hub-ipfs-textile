@@ -2,12 +2,9 @@ import { EventEmitter } from 'events'
 import { Libp2pCryptoIdentity } from '@textile/threads-core'
 import { Client, Buckets, ThreadID, KeyInfo } from '@textile/hub'
 import { StorexHubApi_v0, StorexHubCallbacks_v0, HandleRemoteCallResult_v0 } from '@worldbrain/storex-hub/lib/public-api'
-import { StorageOperationChangeInfo } from '@worldbrain/storex-middleware-change-watcher/lib/types'
-import { Tag } from '@worldbrain/memex-storex-hub/lib/types'
 import { SettingsStore, Settings } from './types'
 import { APP_NAME } from './constants'
 import { APP_SETTINGS_DESCRIPTION } from './app-settings'
-import { getKeyInfo } from './utils'
 
 type Logger = (...args: any[]) => void
 
@@ -19,14 +16,17 @@ export class Application {
     threadsClient?: Client
     bucketsClient?: Buckets
     settingsStore!: SettingsStore
+    localSettingsStore?: SettingsStore
     logger: Logger
     schemaUpdated = false
 
     constructor(private options: {
         needsIdentification: boolean
         logger?: Logger
+        localSettingsStore?: SettingsStore
     }) {
         this.logger = options?.logger || console.log.bind(console)
+        this.localSettingsStore = options.localSettingsStore
     }
 
     getCallbacks(): StorexHubCallbacks_v0 {
@@ -46,6 +46,8 @@ export class Application {
                         result = await this.findObjectsCall(args)
                     } else if (call === 'ensureBucket') {
                         result = await this.ensureBucketCall(args)
+                    } else if (call === 'pushBucket') {
+                        result = await this.pushBucketCall(args)
                     } else {
                         return { status: 'call-not-found' }
                     }
@@ -74,8 +76,20 @@ export class Application {
         return settings[key]
     }
 
+    async getKeyInfo() {
+        const settings = await this.settingsStore.getSettings()
+        if (!settings.userKey || !settings.userSecret) {
+            throw new Error(`Tried to execute a call without providing a user key or secret`)
+        }
+        const keyInfo: KeyInfo = {
+            key: settings.userKey,
+            secret: settings.userSecret,
+        }
+        return keyInfo
+    }
+
     async createThreadsClient() {
-        const client = await Client.withKeyInfo(getKeyInfo())
+        const client = await Client.withKeyInfo(await this.getKeyInfo())
         const identity = await Libp2pCryptoIdentity.fromRandom()
         await client.getToken(identity)
         this.threadsClient = client
@@ -83,7 +97,7 @@ export class Application {
     }
 
     async createBucketsClient() {
-        const client = await Buckets.withKeyInfo(getKeyInfo())
+        const client = await Buckets.withKeyInfo(await this.getKeyInfo())
         const identity = await Libp2pCryptoIdentity.fromRandom()
         await client.getToken(identity)
         this.bucketsClient = client
@@ -156,14 +170,22 @@ export class Application {
 
     async ensureBucket(args: { bucketName: string }) {
         const client = await this.getBucketsClient()
-        const roots = await client.list();
-        const existing = roots.find((bucket) => bucket.name === args.bucketName)
-        if (existing) {
-            return existing.key;
-        }
 
-        const created = await client.init(args.bucketName);
-        const bucketKey = created.root ? created.root.key : ''
+        // Version 1
+        // const roots = await client.list();
+        // const existing = roots.find((bucket) => bucket.name === args.bucketName)
+        // if (existing) {
+        //     return existing.key;
+        // }
+
+        // const created = await client.init(args.bucketName);
+        // const bucketKey = created.root ? created.root.key : ''
+
+        // Version 2
+        const result = await client.open(args.bucketName)
+        if (!result?.key) throw new Error('bucket not created')
+        const bucketKey = result.key
+
         return { bucketKey }
     }
 
@@ -183,6 +205,26 @@ export class Application {
         return { status: 'call-not-found' }
     }
 
+    async pushBucketCall(args: { [key: string]: any }): Promise<HandleRemoteCallResult_v0> {
+        const { bucketName, path, content } = args
+        if (!bucketName || !path || !content) {
+            return { status: 'invalid-args' }
+        }
+
+        const { pushResult } = await this.pushBucket({ bucketName, path, content })
+        return { status: 'success', result: { pushResult } }
+    }
+
+    async pushBucket(args: { bucketName: string, path: string, content: any }) {
+        const client = await this.getBucketsClient()
+        const { bucketKey } = await this.ensureBucket({ bucketName: args.bucketName })
+        const content = typeof args.content === 'string' ? args.content : JSON.stringify(args.content)
+        const file = { path: args.path, content: Buffer.from(content) }
+        const pushResult = await client.pushPath(bucketKey, args.path, file)
+        console.log(pushResult)
+        return { pushResult }
+    }
+
     async _getThreadID(givenThreadID?: string): Promise<ThreadID | 'invalid'> {
         if (givenThreadID) {
             try {
@@ -195,17 +237,11 @@ export class Application {
     }
 
     async getDefaultThreadID() {
-        // const savedThreadID = await this.getSetting('defaultThreadID')
-        // if (savedThreadID) {
-        //     return ThreadID.fromString(savedThreadID)
-        // }
-
         const newThreadID = ThreadID.fromRandom()
         console.log('creating client')
         const client = await this.getThreadsClient()
         console.log('creating database')
         await client.newDB(newThreadID)
-        // await this.settingsStore.updateSettings({ defaultThreadID: newThreadID.toString() })
         return newThreadID
     }
 
@@ -214,11 +250,12 @@ export class Application {
             return
         }
 
+        const localSettingsStore = this.localSettingsStore!
         const sessionInfo = await this.client.getSessionInfo()
 
         this.logger(`Identifying with Storex Hub as '${APP_NAME}'`)
-        const accessTokens = await this.getSetting('accessTokens') ?? {}
-        const accessToken = accessTokens?.[sessionInfo.instanceId]
+        const accessTokens = (await localSettingsStore.getSettings()).accessTokens ?? {}
+        const accessToken = accessTokens[sessionInfo.instanceId]
         if (accessToken) {
             this.logger(`Found existing access token, using it to identify`)
             const identificationResult = await this.client.identifyApp({
@@ -239,7 +276,7 @@ export class Application {
             if (registrationResult.status === 'success') {
                 const accessToken = registrationResult.accessToken
                 accessTokens[sessionInfo.instanceId] = accessToken
-                await this.settingsStore.updateSettings({ accessTokens })
+                await localSettingsStore.updateSettings({ accessTokens })
             }
             else {
                 throw new Error(`Couldn't register app '${APP_NAME}'": ${registrationResult.status}`)

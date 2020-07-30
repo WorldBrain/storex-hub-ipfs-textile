@@ -1,6 +1,8 @@
 export interface Settings {
     accessTokens: { [instanceId: string]: string }
     defaultThreadID: string
+    userKey: string
+    userSecret: string
 }
 
 export interface SettingsStore {

@@ -5,7 +5,7 @@ import { createStorexHubSocketClient } from '@worldbrain/storex-hub/lib/client'
 // import { Database } from '@textile/threads-database'
 // import { Client, KeyInfo } from '@textile/hub'
 import { Application } from './application'
-import { FileSettingsStore } from './settings'
+import { FileSettingsStore, StorexHubSettingsStore } from './settings'
 import { join } from 'path'
 
 export async function main(options?: {
@@ -50,9 +50,10 @@ export async function main(options?: {
     const socket = io(`http://localhost:${port}`)
     console.log('Connecting to Storex Hub')
 
-    const application = new Application({ needsIdentification: true })
+    const localSettingsStore = new FileSettingsStore(join(__dirname, '..', 'private', 'settings.json'))
+    const application = new Application({ needsIdentification: true, localSettingsStore })
     const client = await createStorexHubSocketClient(socket, { callbacks: application.getCallbacks() })
-    const settingsStore = new FileSettingsStore(join(__dirname, '..', 'private', 'settings.json'))
+    const settingsStore = new StorexHubSettingsStore(client)
     await application.setup({
         client,
         settingsStore,
