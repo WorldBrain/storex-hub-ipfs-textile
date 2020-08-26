@@ -1,0 +1,39 @@
+{
+  "select": {
+    "placeholder": "tag",
+    "app": "io.worldbrain.memex",
+    "remote": true,
+    "collection": "tags",
+    "pk": ["name", "url"],
+    "where": { "name": "share-textile" }
+  },
+  "on": {
+    "add": [
+      {
+        "placeholder": "page",
+        "operation": "findObject",
+        "app": "io.worldbrain.memex",
+        "remote": true,
+        "collection": "pages",
+        "where": { "url": { "$logic": "$tag.pk.1" } }
+      },
+      {
+        "app": "io.textile",
+        "call": "pushBucket",
+        "args": {
+          "bucketName": "memexPages",
+          "path": { "$logic": "`/${page.url}.json`" },
+          "content": {
+            "$logic": {
+              "object": {
+                "normalizedUrl": "$page.url",
+                "fullUrl": "$page.fullUrl",
+                "fulTitle": "$page.fullTitle"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

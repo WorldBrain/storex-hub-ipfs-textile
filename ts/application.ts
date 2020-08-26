@@ -129,17 +129,6 @@ export class Application {
             return { status: 'invalid-args' }
         }
         const client = await this.getThreadsClient()
-        // console.log(client.context)
-        // console.log('creating collection in thread', threadID, collectionName, schema)
-        // const schema2 = {
-        //     properties: {
-        //         _id: { type: 'string' },
-        //         fullName: { type: 'string' },
-        //         age: { type: 'integer', minimum: 0 },
-        //     },
-        // }
-        // console.log(await client.listDBs())
-        // await client.newCollection(threadID, collectionName, schema2)
         await client.newCollection(threadID, collectionName, schema)
         return { status: 'success', result: {} }
     }
@@ -183,8 +172,8 @@ export class Application {
 
         // Version 2
         const result = await client.open(args.bucketName)
-        if (!result?.key) throw new Error('bucket not created')
-        const bucketKey = result.key
+        const bucketKey = result?.key
+        if (!bucketKey) throw new Error('bucket not created')
 
         return { bucketKey }
     }
@@ -200,8 +189,6 @@ export class Application {
         }
         const client = await this.getThreadsClient()
         const resultList = await client.find(threadID, collection, where)
-        console.log(resultList.instancesList)
-
         return { status: 'call-not-found' }
     }
 
@@ -216,12 +203,15 @@ export class Application {
     }
 
     async pushBucket(args: { bucketName: string, path: string, content: any }) {
+        console.log(`Pushing to bucket ${args.bucketName}, path ${args.path}`)
         const client = await this.getBucketsClient()
+        console.log(`Got bucket client, ensuring bucket exists`)
         const { bucketKey } = await this.ensureBucket({ bucketName: args.bucketName })
+        console.log(`Ensured bucket exists, pushing content`)
         const content = typeof args.content === 'string' ? args.content : JSON.stringify(args.content)
         const file = { path: args.path, content: Buffer.from(content) }
         const pushResult = await client.pushPath(bucketKey, args.path, file)
-        console.log(pushResult)
+        console.log('Successful push! Result:', pushResult)
         return { pushResult }
     }
 
