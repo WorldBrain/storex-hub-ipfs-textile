@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events'
-import { Libp2pCryptoIdentity } from '@textile/threads-core'
-import { Client, Buckets, ThreadID, KeyInfo } from '@textile/hub'
+import { Client, Buckets, ThreadID, KeyInfo, PrivateKey } from '@textile/hub'
 import { StorexHubApi_v0, StorexHubCallbacks_v0, HandleRemoteCallResult_v0 } from '@worldbrain/storex-hub/lib/public-api'
 import { SettingsStore, Settings } from './types'
 import { APP_NAME } from './constants'
@@ -90,7 +89,7 @@ export class Application {
 
     async createThreadsClient() {
         const client = await Client.withKeyInfo(await this.getKeyInfo())
-        const identity = await Libp2pCryptoIdentity.fromRandom()
+        const identity = await PrivateKey.fromRandom()
         await client.getToken(identity)
         this.threadsClient = client
         return client
@@ -98,7 +97,7 @@ export class Application {
 
     async createBucketsClient() {
         const client = await Buckets.withKeyInfo(await this.getKeyInfo())
-        const identity = await Libp2pCryptoIdentity.fromRandom()
+        const identity = await PrivateKey.fromRandom()
         await client.getToken(identity)
         this.bucketsClient = client
         return client
@@ -160,21 +159,9 @@ export class Application {
     async ensureBucket(args: { bucketName: string }) {
         const client = await this.getBucketsClient()
 
-        // Version 1
-        // const roots = await client.list();
-        // const existing = roots.find((bucket) => bucket.name === args.bucketName)
-        // if (existing) {
-        //     return existing.key;
-        // }
-
-        // const created = await client.init(args.bucketName);
-        // const bucketKey = created.root ? created.root.key : ''
-
-        // Version 2
-        const result = await client.open(args.bucketName)
-        const bucketKey = result?.key
+        const result = await client.getOrInit(args.bucketName)
+        const bucketKey = result.root?.key
         if (!bucketKey) throw new Error('bucket not created')
-
         return { bucketKey }
     }
 
